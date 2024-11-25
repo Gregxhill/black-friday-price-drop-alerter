@@ -69,7 +69,7 @@ const getPriceFromFile = async (filePath) => {
   } catch (error) {
     if (error.code === 'ENOENT') {
       // File doesn't exist, create it with default price
-      await fs.writeFile(filePath, process.env.INITIAL_PRICE.toString());
+      await fs.writeFile(filePath, String(process.env.INITIAL_PRICE));
       return process.env.INITIAL_PRICE;
     }
     throw error;
