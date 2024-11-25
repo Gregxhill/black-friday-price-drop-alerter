@@ -5,7 +5,7 @@ const fs = require('fs').promises;
 require('dotenv').config();
 
 // CONSTANTS
-const INITIAL_PRICE = 11499;
+const INITIAL_PRICE = 1;
 const LAST_PRICE_FILE_PATH = 'last-price.txt';
 
 const sendNotification = async (url, currentPrice, startingPrice) => {
