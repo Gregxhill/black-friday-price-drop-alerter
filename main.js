@@ -5,7 +5,6 @@ const fs = require('fs').promises;
 require('dotenv').config();
 
 // CONSTANTS
-const INITIAL_PRICE = 1;
 const LAST_PRICE_FILE_PATH = 'last-price.txt';
 
 const sendNotification = async (url, currentPrice, startingPrice) => {
@@ -70,8 +69,8 @@ const getPriceFromFile = async (filePath) => {
   } catch (error) {
     if (error.code === 'ENOENT') {
       // File doesn't exist, create it with default price
-      await fs.writeFile(filePath, INITIAL_PRICE.toString());
-      return INITIAL_PRICE;
+      await fs.writeFile(filePath, process.env.INITIAL_PRICE.toString());
+      return process.env.INITIAL_PRICE;
     }
     throw error;
   }
