@@ -1,7 +1,9 @@
-const { chromium } = require('playwright');
-const nodemailer = require('nodemailer');
-const fs = require('fs').promises;
-require('dotenv').config();
+import { chromium } from 'playwright';
+import nodemailer from 'nodemailer';
+import { promises as fs } from 'fs';
+import chalk from 'chalk';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const sendNotification = async (url, currentPrice, startingPrice, subject) => {
   const transporter = nodemailer.createTransport({
@@ -32,11 +34,14 @@ const sendNotification = async (url, currentPrice, startingPrice, subject) => {
 };
 
 const fetchCurrentPrices = async (products) => {
-  console.log(products);
   const browser = await chromium.launch(); // Launch browser
 
   for (const product of products) {
     const page = await browser.newPage();
+    console.log(
+      chalk.green('Tracking price for: '),
+      chalk.bgMagenta.bold(product.productName)
+    );
     try {
       await page.goto(product.url, {
         waitUntil: 'domcontentloaded',
@@ -44,8 +49,6 @@ const fetchCurrentPrices = async (products) => {
       }); // Navigate to the product page
       // Wait for the price element to be visible
       await page.waitForSelector(product.selector, { timeout: 180000 });
-
-      console.log(product.selector);
 
       const priceText = await page.$eval(product.selector, (element) =>
         element.textContent.trim()
@@ -55,7 +58,7 @@ const fetchCurrentPrices = async (products) => {
 
       // Parse and clean the price
       const currentPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-      console.log(`Price: R${currentPrice}`);
+      console.log(chalk.yellowBright.bold(`Current Price: R${currentPrice}`));
 
       if (product?.remainingProductsDomSelector) {
         const itemsRemainingText = await page.$eval(
