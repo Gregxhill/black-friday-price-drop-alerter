@@ -110,7 +110,7 @@ const fetchCurrentPrices = async (products) => {
   try {
     const updatedData = { products }; // Wrap the products array in an object
     await fs.writeFile('products.json', JSON.stringify(updatedData, null, 2));
-    console.log('Updated products.json file.');
+    console.log(chalk.italic('Updated products.json file.'));
   } catch (error) {
     console.error('Error updating products.json:', error.message);
   }
