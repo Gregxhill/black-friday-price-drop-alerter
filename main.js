@@ -1,13 +1,9 @@
 const { chromium } = require('playwright');
 const nodemailer = require('nodemailer');
 const fs = require('fs').promises;
-
 require('dotenv').config();
 
-// CONSTANTS
-const LAST_PRICE_FILE_PATH = 'last-price.txt';
-
-const sendNotification = async (url, currentPrice, startingPrice) => {
+const sendNotification = async (url, currentPrice, startingPrice, subject) => {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -19,7 +15,7 @@ const sendNotification = async (url, currentPrice, startingPrice) => {
   const mailOptions = {
     from: process.env.EMAIL,
     to: process.env.NOTIFY_EMAIL,
-    subject: 'Price Drop Alert!',
+    subject: subject,
     text: `The price of your product has dropped!\n
           Starting Price: R${startingPrice}\n
           Current Price: R${currentPrice}\n
@@ -35,71 +31,92 @@ const sendNotification = async (url, currentPrice, startingPrice) => {
   }
 };
 
-const fetchPrice = async (url, selector) => {
+const fetchCurrentPrices = async (products) => {
+  console.log(products);
   const browser = await chromium.launch(); // Launch browser
-  const page = await browser.newPage(); // Open a new page
-  await page.goto(url, { waitUntil: 'domcontentloaded' }); // Navigate to the product page
 
-  try {
-    // Wait for the price element to be visible
-    await page.waitForSelector(selector);
-    const priceText = await page.$eval(
-      selector,
-      (element) => element.textContent
-    );
+  for (const product of products) {
+    const page = await browser.newPage();
+    try {
+      await page.goto(product.url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 180000,
+      }); // Navigate to the product page
+      // Wait for the price element to be visible
+      await page.waitForSelector(product.selector, { timeout: 180000 });
 
-    console.log('Heres the price text: ', priceText);
+      console.log(product.selector);
 
-    // Parse and clean the price
-    const price = parseFloat(priceText.replace(/[^0-9.]/g, ''));
-    console.log(`Price: ${price}`);
-    await browser.close();
-    return price;
-  } catch (error) {
-    console.error(`Error fetching price: ${error.message}`);
-    await browser.close();
-    return null;
-  }
-};
+      const priceText = await page.$eval(product.selector, (element) =>
+        element.textContent.trim()
+      );
 
-const getPriceFromFile = async (filePath) => {
-  try {
-    const data = await fs.readFile(filePath, 'utf8');
-    return parseFloat(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      // File doesn't exist, create it with default price
-      await fs.writeFile(filePath, String(process.env.INITIAL_PRICE));
-      return process.env.INITIAL_PRICE;
+      console.log('Heres the price text: ', priceText);
+
+      // Parse and clean the price
+      const currentPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
+      console.log(`Price: R${currentPrice}`);
+
+      if (product?.remainingProductsDomSelector) {
+        const itemsRemainingText = await page.$eval(
+          product.remainingProductsDomSelector,
+          (element) => element.textContent
+        );
+
+        const match = itemsRemainingText.match(/Only (\d+) left/);
+
+        const remainingItemsNum = match ? parseInt(match[1], 10) : null;
+
+        console.log('items remaining ', remainingItemsNum);
+
+        if (remainingItemsNum <= 1) {
+          await sendNotification(
+            product.url,
+            currentPrice,
+            product.startingPrice,
+            `Only ${remainingItemsNum} amount left!`
+          );
+        }
+      }
+
+      if (currentPrice && currentPrice < product.startingPrice) {
+        const timestamp = new Date().toLocaleString();
+        console.log(`[${timestamp}] PRICE DECREASE!`);
+        await sendNotification(
+          product.url,
+          currentPrice,
+          product.startingPrice,
+          'Price Drop Alert!'
+        );
+        // Update startingPrice
+        product.startingPrice = currentPrice;
+      } else {
+        const timestamp = new Date().toLocaleString();
+        console.log(`[${timestamp}] Price increased or remained the same`);
+      }
+    } catch (error) {
+      console.error(`Error fetching price: ${error.message}`);
+    } finally {
+      await page.close(); // Close page after processing
     }
-    throw error;
   }
-};
 
-const updatePriceInFile = async (filePath, price) => {
-  await fs.writeFile(filePath, price.toString());
+  await browser.close(); // Close the browser after all operations are complete
+
+  // Save updated products back to the JSON file
+  try {
+    const updatedData = { products }; // Wrap the products array in an object
+    await fs.writeFile('products.json', JSON.stringify(updatedData, null, 2));
+    console.log('Updated products.json file.');
+  } catch (error) {
+    console.error('Error updating products.json:', error.message);
+  }
 };
 
 (async () => {
-  const url = process.env.PRODUCT_URL;
-  const selector = process.env.PRICE_DOM_SELECTOR;
-  const priceFilePath = LAST_PRICE_FILE_PATH;
+  //Read products
+  const data = await fs.readFile('products.json', 'utf8');
+  const products = await JSON.parse(data);
 
-  // Read the starting price from file
-  const startingPrice = await getPriceFromFile(priceFilePath);
-  const currentPrice = await fetchPrice(url, selector);
-
-  console.log(`Starting Price: ${startingPrice}`);
-  console.log(`Fetched Price: ${currentPrice}`);
-
-  if (currentPrice && currentPrice < startingPrice) {
-    const timestamp = new Date().toLocaleString();
-    console.log(`[${timestamp}] PRICE DECREASE!`);
-    await sendNotification(url, currentPrice, startingPrice);
-    // Update the price in the file for the next run
-    await updatePriceInFile(priceFilePath, currentPrice);
-  } else {
-    const timestamp = new Date().toLocaleString();
-    console.log(`[${timestamp}] Price increased or remained the same`);
-  }
+  await fetchCurrentPrices(products.products);
 })();

@@ -12,6 +12,8 @@
 - copy paste the .env-example into a .env and fill out the values
   - copy & set the `PRODUCT_URL` using the url for the takealot/ecom product page
   - inspect the page using chrome dev tools/playwright tools and set the DOM selector for the price component
+- create a products.json file using the example-products.json file and update it with the products you'd like to track.
+  - <span style="color: red">**Make sure to follow the JSON schema shown in the example file**</span>
 - update the constants in the main.js file accordingly
 - run `node main.js`
 

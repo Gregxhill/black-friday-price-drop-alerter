@@ -1,0 +1,17 @@
+{
+  "products": [
+    {
+      "productName": "Product A",
+      "url": "",
+      "startingPrice": 5000,
+      "selector": ".buybox-offer-module_single-item_18a_g span.currency",
+      "remainingProductsDomSelector": "[data-ref=buybox-only-x-left]"
+    },
+    {
+      "productName": "Product B",
+      "url": "",
+      "startingPrice": 10000,
+      "selector": ".buybox-offer-module_single-item_18a_g span.currency"
+    }
+  ]
+}
