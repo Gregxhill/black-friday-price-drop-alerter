@@ -54,8 +54,6 @@ const fetchCurrentPrices = async (products) => {
         element.textContent.trim()
       );
 
-      console.log('Heres the price text: ', priceText);
-
       // Parse and clean the price
       const currentPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
       console.log(chalk.yellowBright.bold(`Current Price: R${currentPrice}`));
@@ -110,7 +108,6 @@ const fetchCurrentPrices = async (products) => {
   try {
     const updatedData = { products }; // Wrap the products array in an object
     await fs.writeFile('products.json', JSON.stringify(updatedData, null, 2));
-    console.log(chalk.italic('Updated products.json file.'));
   } catch (error) {
     console.error('Error updating products.json:', error.message);
   }
