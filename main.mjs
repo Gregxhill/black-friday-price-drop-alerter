@@ -3,9 +3,10 @@ import nodemailer from 'nodemailer';
 import { promises as fs } from 'fs';
 import chalk from 'chalk';
 import dotenv from 'dotenv';
+import _ from 'lodash';
 dotenv.config();
 
-const sendNotification = async (url, currentPrice, startingPrice, subject) => {
+const sendNotification = async (text, subject) => {
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -18,11 +19,7 @@ const sendNotification = async (url, currentPrice, startingPrice, subject) => {
     from: process.env.EMAIL,
     to: process.env.NOTIFY_EMAIL,
     subject: subject,
-    text: `The price of your product has dropped!\n
-          Starting Price: R${startingPrice}\n
-          Current Price: R${currentPrice}\n
-          Product URL: ${url}\n
-          Saved: R${startingPrice - currentPrice}`,
+    text: text,
   };
 
   try {
@@ -34,7 +31,7 @@ const sendNotification = async (url, currentPrice, startingPrice, subject) => {
 };
 
 const fetchCurrentPrices = async (products) => {
-  const browser = await chromium.launch(); // Launch browser
+  const browser = await chromium.launch({ headless: true }); // Launch browser
 
   for (const product of products) {
     const page = await browser.newPage();
@@ -47,12 +44,15 @@ const fetchCurrentPrices = async (products) => {
         waitUntil: 'domcontentloaded',
         timeout: 180000,
       }); // Navigate to the product page
+
       // Wait for the price element to be visible
       await page.waitForSelector(product.selector, { timeout: 180000 });
 
       const priceText = await page.$eval(product.selector, (element) =>
         element.textContent.trim()
       );
+
+      console.log(priceText);
 
       // Parse and clean the price
       const currentPrice = parseFloat(priceText.replace(/[^0-9.]/g, ''));
@@ -71,10 +71,14 @@ const fetchCurrentPrices = async (products) => {
         console.log('items remaining ', remainingItemsNum);
 
         if (remainingItemsNum <= 1) {
+          const msgText = `The price of your product has dropped!\n
+          Starting Price: R${product.startingPrice}\n
+          Current Price: R${currentPrice}\n
+          Product URL: ${product.url}\n
+          Saved: R${startingPrice - currentPrice}`;
+
           await sendNotification(
-            product.url,
-            currentPrice,
-            product.startingPrice,
+            msgText,
             `Only ${remainingItemsNum} amount left!`
           );
         }
@@ -83,12 +87,14 @@ const fetchCurrentPrices = async (products) => {
       if (currentPrice && currentPrice < product.startingPrice) {
         const timestamp = new Date().toLocaleString();
         console.log(`[${timestamp}] PRICE DECREASE!`);
-        await sendNotification(
-          product.url,
-          currentPrice,
-          product.startingPrice,
-          'Price Drop Alert!'
-        );
+
+        const msgText = `The price of your product has dropped!\n
+        Starting Price: R${product.startingPrice}\n
+        Current Price: R${currentPrice}\n
+        Product URL: ${product.url}\n
+        Saved: R${startingPrice - currentPrice}`;
+
+        await sendNotification(msgText, 'Price Drop Alert!');
         // Update startingPrice
         product.startingPrice = currentPrice;
       } else {
@@ -113,10 +119,52 @@ const fetchCurrentPrices = async (products) => {
   }
 };
 
+const checkCoupons = async (products) => {
+  const selector =
+    'section[data-ref="banner-carousel"] >> a.banner-carousel-module_banner_1HceQ';
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext();
+
+  const page = await context.newPage();
+
+  await page.goto('https://www.takealot.com/blue-dot-sale-live-shopping', {
+    waitUntil: 'domcontentloaded',
+    timeout: 180000,
+  });
+
+  const productPaths = products.map((product) =>
+    _.replace(product.url, /^https?:\/\/[^/]+/, '')
+  );
+
+  // Wait for the price element to be visible
+  await page.waitForSelector(selector, { timeout: 180000, state: 'visible' });
+
+  const links = await page.$$(selector);
+
+  for (const link of links) {
+    const href = await link.getAttribute('href');
+
+    if (href) {
+      const linkPath = _.replace(href, /^https?:\/\/[^/]+/, '');
+
+      if (productPaths.includes(linkPath)) {
+        console.log('match found! For ', linkPath);
+        await sendNotification(
+          'Coupon found',
+          `Coupon Available for ${linkPath}`
+        );
+      }
+    }
+  }
+
+  await browser.close();
+};
+
 (async () => {
   //Read products
   const data = await fs.readFile('products.json', 'utf8');
   const products = await JSON.parse(data);
 
+  await checkCoupons(products.products);
   await fetchCurrentPrices(products.products);
 })();
