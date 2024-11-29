@@ -75,7 +75,7 @@ const fetchCurrentPrices = async (products) => {
           Starting Price: R${product.startingPrice}\n
           Current Price: R${currentPrice}\n
           Product URL: ${product.url}\n
-          Saved: R${startingPrice - currentPrice}`;
+          Saved: R${product.startingPrice - currentPrice}`;
 
           await sendNotification(
             msgText,
@@ -92,7 +92,7 @@ const fetchCurrentPrices = async (products) => {
         Starting Price: R${product.startingPrice}\n
         Current Price: R${currentPrice}\n
         Product URL: ${product.url}\n
-        Saved: R${startingPrice - currentPrice}`;
+        Saved: R${product.startingPrice - currentPrice}`;
 
         await sendNotification(msgText, 'Price Drop Alert!');
         // Update startingPrice
