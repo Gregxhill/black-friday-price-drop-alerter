@@ -15,7 +15,7 @@
 - create a products.json file using the example-products.json file and update it with the products you'd like to track.
   - <span style="color: red">**Make sure to follow the JSON schema shown in the example file**</span>
 - update the constants in the main.js file accordingly
-- run `node main.js`
+- run `node main.mjs`
 
 ## To automate:
 
