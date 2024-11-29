@@ -20,3 +20,7 @@
 ## To automate:
 
 - on MacOS create a plist file at `~/Library/LaunchAgents` using the `example-com.pricechecker.plist` file as an example with the relevant interval logic, directory paths etc and run `launchctl load ~/Library/LaunchAgents/com.pricechecker.plist` to load and start the script automation which will run on the hour every hour
+
+## Tech:
+
+- leverages playwright for browser automation and nodemailer for sending emails
